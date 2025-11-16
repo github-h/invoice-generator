@@ -284,16 +284,61 @@ const EU_VAT_RATES = {
 // 货币配置
 const CURRENCIES = [
   { code: "USD", name: "US Dollar", symbol: "$", locale: "en-US" },
+  { code: "EUR", name: "Euro", symbol: "€", locale: "de-DE" },
+  { code: "GBP", name: "British Pound", symbol: "£", locale: "en-GB" },
   { code: "CNY", name: "Chinese Yuan", symbol: "¥", locale: "zh-CN" },
   { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$", locale: "zh-HK" },
   { code: "JPY", name: "Japanese Yen", symbol: "¥", locale: "ja-JP" },
-  { code: "EUR", name: "Euro", symbol: "€", locale: "de-DE" },
-  { code: "GBP", name: "British Pound", symbol: "£", locale: "en-GB" },
   { code: "AUD", name: "Australian Dollar", symbol: "A$", locale: "en-AU" },
   { code: "CAD", name: "Canadian Dollar", symbol: "C$", locale: "en-CA" },
   { code: "SGD", name: "Singapore Dollar", symbol: "S$", locale: "en-SG" }
 ];
 
+// 语言配置
+const LANGUAGES = {
+  "en": {
+    code: "en",
+    name: "English",
+    translations: {
+      invoice: "Invoice",
+      invoiceNumber: "Invoice number",
+      dateOfIssue: "Date of issue",
+      dateDue: "Date due",
+      billTo: "Bill to",
+      due: "due",
+      description: "Description",
+      qty: "Qty",
+      unitPrice: "Unit price",
+      tax: "Tax",
+      amount: "Amount",
+      subtotal: "Subtotal",
+      total: "Total",
+      amountDue: "Amount due",
+      notes: "Additional notes, payment terms, or special instructions..."
+    }
+  },
+  "zh": {
+    code: "zh",
+    name: "中文",
+    translations: {
+      invoice: "发票",
+      invoiceNumber: "发票编号",
+      dateOfIssue: "开票日期",
+      dateDue: "到期日期",
+      billTo: "账单接收方",
+      due: "到期",
+      description: "描述",
+      qty: "数量",
+      unitPrice: "单价",
+      tax: "税率",
+      amount: "金额",
+      subtotal: "小计",
+      total: "总计",
+      amountDue: "应付金额",
+      notes: "附加说明、付款条款或特殊说明..."
+    }
+  }
+};
 
 const EU_COUNTRY_CODES = Object.keys(EU_VAT_RATES);
 
@@ -304,6 +349,7 @@ let state = {
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
       companyLogoUrl: "",
+      language: "en",
       currency: "USD",  
       companyName: "Sunergos IT LLC",
       companyAddress: "Martir Marius Ciopec 18\nsc. C, et. 3, ap. 16\n300732 Timisoara\nsupport@gitdigest.ai",
@@ -363,6 +409,11 @@ function saveToStorage() {
   }));
 }
 
+function getTranslation(key) {
+    const lang = state.invoiceData.language || "en";
+    return LANGUAGES[lang].translations[key] || key;
+}
+
 function formatCurrency(number) {
     if (number === null || number === undefined || isNaN(number)) return "0.00";
     
@@ -385,6 +436,7 @@ function updateUI() {
   document.getElementById('invoiceNumber').value = state.invoiceData.invoiceNumber;
   document.getElementById('issueDate').value = state.invoiceData.issueDate;
   document.getElementById('dueDate').value = state.invoiceData.dueDate;
+  document.getElementById('languageSelect').value = state.invoiceData.language;
   document.getElementById('currencySelect').value = state.invoiceData.currency;
   document.getElementById('companyName').value = state.invoiceData.companyName;
   document.getElementById('companyAddress').value = state.invoiceData.companyAddress;
@@ -395,6 +447,9 @@ function updateUI() {
   document.getElementById('customerVat').value = state.invoiceData.customerVat;
   document.getElementById('reverseCharge').checked = state.invoiceData.isReverseCharge;
   document.getElementById('notes').value = state.invoiceData.notes;
+
+  // 更新页面文本
+  updatePageLanguage();
 
   // Update logo
   updateLogo();
@@ -421,6 +476,40 @@ function updateUI() {
   document.getElementById('businessSaveBtn').style.display = state.selectedBusinessId || state.hasUnsavedBusinessChanges ? 'inline-block' : 'none';
   document.getElementById('clientUnsaved').style.display = state.hasUnsavedClientChanges ? 'block' : 'none';
   document.getElementById('clientSaveBtn').style.display = state.selectedClientId || state.hasUnsavedClientChanges ? 'inline-block' : 'none';
+}
+
+function updatePageLanguage() {
+  // 更新发票标题
+  document.querySelector('header h1').textContent = getTranslation('invoice');
+  
+  // 更新表单标签
+  document.querySelectorAll('header .grid strong').forEach((el, index) => {
+    const keys = ['invoiceNumber', 'dateOfIssue', 'dateDue'];
+    el.textContent = getTranslation(keys[index]);
+  });
+  
+  // 更新"Bill to"
+  document.querySelector('section h2').textContent = getTranslation('billTo');
+  
+  // 更新表格表头
+  const tableHeaders = document.querySelectorAll('table thead th');
+  const headerKeys = ['description', 'qty', 'unitPrice', 'tax', 'amount'];
+  tableHeaders.forEach((th, index) => {
+    if (index < headerKeys.length) {
+      th.textContent = getTranslation(headerKeys[index]);
+    }
+  });
+  
+  // 更新总计区域
+  document.querySelectorAll('.flex.justify-end .w-full span.text-gray-600').forEach((el, index) => {
+    const keys = ['subtotal', 'tax', 'total', 'amountDue'];
+    if (index < keys.length) {
+      el.textContent = getTranslation(keys[index]);
+    }
+  });
+  
+  // 更新notes placeholder
+  document.getElementById('notes').placeholder = getTranslation('notes');
 }
 
 // Logo handling
@@ -539,11 +628,14 @@ function updateTotals() {
   if (totalEl) totalEl.textContent = formatCurrency(total);
   if (amountDueEl) amountDueEl.textContent = formatCurrency(total);
 
-  // Update due date text
+ // 更新due date文本
   if (totalDueEl) {
       const dueDate = new Date(state.invoiceData.dueDate);
-      const dueDateText = dueDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      totalDueEl.innerHTML = `${formatCurrency(total)} due ${dueDateText}`;
+      const dueDateText = dueDate.toLocaleDateString(
+          state.invoiceData.language === 'zh' ? 'zh-CN' : 'en-US', 
+          { year: "numeric", month: "long", day: "numeric" }
+      );
+      totalDueEl.innerHTML = `${formatCurrency(total)} ${getTranslation('due')} ${dueDateText}`;
   }
 }
 
@@ -748,6 +840,13 @@ function init() {
       state.invoiceData.dueDate = e.target.value;
       saveToStorage();
       updateTotals();
+  });
+
+  // 语言选择
+  document.getElementById('languageSelect').addEventListener('change', (e) => {
+      state.invoiceData.language = e.target.value;
+      saveToStorage();
+      updateUI();
   });
 
   // 货币选择
