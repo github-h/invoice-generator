@@ -281,6 +281,20 @@ const EU_VAT_RATES = {
   "SE": { standard: 25, countryCode: "SE" }, // Sweden
 };
 
+// 货币配置
+const CURRENCIES = [
+  { code: "USD", name: "US Dollar", symbol: "$", locale: "en-US" },
+  { code: "CNY", name: "Chinese Yuan", symbol: "¥", locale: "zh-CN" },
+  { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$", locale: "zh-HK" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥", locale: "ja-JP" },
+  { code: "EUR", name: "Euro", symbol: "€", locale: "de-DE" },
+  { code: "GBP", name: "British Pound", symbol: "£", locale: "en-GB" },
+  { code: "AUD", name: "Australian Dollar", symbol: "A$", locale: "en-AU" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "C$", locale: "en-CA" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$", locale: "en-SG" }
+];
+
+
 const EU_COUNTRY_CODES = Object.keys(EU_VAT_RATES);
 
 // State management
@@ -290,6 +304,7 @@ let state = {
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
       companyLogoUrl: "",
+      currency: "USD",  
       companyName: "Sunergos IT LLC",
       companyAddress: "Martir Marius Ciopec 18\nsc. C, et. 3, ap. 16\n300732 Timisoara\nsupport@gitdigest.ai",
       companyCountry: "RO",
@@ -349,8 +364,19 @@ function saveToStorage() {
 }
 
 function formatCurrency(number) {
-    if (number === null || number === undefined || isNaN(number)) return "$0.00";
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(number));
+    if (number === null || number === undefined || isNaN(number)) return "0.00";
+    
+    const currency = CURRENCIES.find(c => c.code === state.invoiceData.currency) || CURRENCIES[0];
+    
+    // 对于日元和韩元,不显示小数位
+    const options = {
+        style: 'currency',
+        currency: currency.code,
+        minimumFractionDigits: (currency.code === 'JPY' || currency.code === 'KRW') ? 0 : 2,
+        maximumFractionDigits: (currency.code === 'JPY' || currency.code === 'KRW') ? 0 : 2
+    };
+    
+    return new Intl.NumberFormat(currency.locale, options).format(Number(number));
 }
 
 // Update UI from state
@@ -359,6 +385,7 @@ function updateUI() {
   document.getElementById('invoiceNumber').value = state.invoiceData.invoiceNumber;
   document.getElementById('issueDate').value = state.invoiceData.issueDate;
   document.getElementById('dueDate').value = state.invoiceData.dueDate;
+  document.getElementById('currencySelect').value = state.invoiceData.currency;
   document.getElementById('companyName').value = state.invoiceData.companyName;
   document.getElementById('companyAddress').value = state.invoiceData.companyAddress;
   document.getElementById('companyCountry').value = state.invoiceData.companyCountry;
@@ -721,6 +748,13 @@ function init() {
       state.invoiceData.dueDate = e.target.value;
       saveToStorage();
       updateTotals();
+  });
+
+  // 货币选择
+  document.getElementById('currencySelect').addEventListener('change', (e) => {
+      state.invoiceData.currency = e.target.value;
+      saveToStorage();
+      updateUI();
   });
 
   document.getElementById('companyName').addEventListener('input', (e) => {
